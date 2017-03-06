@@ -151,6 +151,16 @@ module Octopus
     end
   end
 
+  def self.using_schema(schema, &block)
+    conn = ActiveRecord::Base.connection
+
+    if conn.is_a?(Octopus::Proxy)
+      conn.run_queries_on_schema(schema, &block)
+    else
+      yield
+    end
+  end
+
   def self.fully_replicated(&_block)
     old_fully_replicated = Thread.current[Octopus::Proxy::FULLY_REPLICATED_KEY]
     Thread.current[Octopus::Proxy::FULLY_REPLICATED_KEY] = true

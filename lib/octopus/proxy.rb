@@ -18,6 +18,7 @@ module Octopus
     def initialize(config = Octopus.config)
       initialize_shards(config)
       initialize_replication(config) if !config.nil? && config['replicated']
+      initialize_postgres_schemas(config) #if !config.nil? && config['use_postgres_schemas']
     end
 
     def initialize_shards(config)
@@ -96,6 +97,25 @@ module Octopus
       @slaves_list = @shards.keys.map(&:to_s).sort
       @slaves_list.delete('master')
       @slaves_load_balancer = Octopus.load_balancer.new(@slaves_list)
+    end
+
+    def initialize_postgres_schemas(config)
+      @schemas = HashWithIndifferentAccess.new
+      @postgres_schemas = true
+      @default_postgres_schema = config['default_postgres_schema'] || '"$user", public'
+      @persistent_postgres_schemas ||= config['persistent_postgres_schemas']
+    end
+
+    def default_postgres_schema
+      @default_postgres_schema
+    end
+
+    def persistent_postgres_schemas
+      @persistent_postgres_schemas
+    end
+
+    def postgres_schema_search_path(schema = nil)
+      [schema, persistent_postgres_schemas, default_postgres_schema].compact.join(',')
     end
 
     def current_model
@@ -243,6 +263,16 @@ module Octopus
     def run_queries_on_shard(shard, &_block)
       keeping_connection_proxy(shard) do
         using_shard(shard) do
+          yield
+        end
+      end
+    end
+
+    def run_queries_on_schema(schema, &_block)
+      shard = @schemas[schema] 
+      shard = 'postgresql_shard'
+      keeping_connection_proxy(shard) do
+        using_schema(schema, shard) do
           yield
         end
       end
@@ -523,6 +553,26 @@ module Octopus
       end
     end
 
+    # Temporarily switch `current_shard` and schema_search_path and run the block
+    def using_schema(schema, shard, &block)
+      older_shard = current_shard
+      older_slave_group = current_slave_group
+      older_load_balance_options = current_load_balance_options
+
+      begin
+        unless current_model && !current_model.allowed_shard?(shard)
+          self.current_shard = shard
+          self.schema_search_path = postgres_schema_search_path(schema)
+        end
+        yield
+      ensure
+        self.schema_search_path = postgres_schema_search_path
+        self.current_shard = older_shard
+        self.current_slave_group = older_slave_group
+        self.current_load_balance_options = older_load_balance_options
+      end
+    end
+
     def structurally_slave?(config)
       config.is_a?(Hash) && config.key?('adapter')
     end
@@ -530,5 +580,6 @@ module Octopus
     def structurally_slave_group?(config)
       config.is_a?(Hash) && config.values.any? { |v| structurally_slave? v }
     end
+
   end
 end
