@@ -1,19 +1,6 @@
 module Octopus
-  class PostgresSchemaScopeProxy < BasicObject
-    include ::Octopus::ShardTracking::Attribute
-
-    module CaseFixer
-      def ===(other)
-        other = other.klass while ::Octopus::ScopeProxy === other
-        super
-      end
-    end
-
-    attr_accessor :klass, :current_schema
-
-    # Dup and clone should be delegated to the class.
-    # We want to dup the query, not the scope proxy.
-    delegate :dup, :clone, to: :klass
+  class PostgresSchemaScopeProxy < ScopeProxy
+    attr_accessor :current_schema
 
     def initialize(schema, shard, klass)
       @current_schema = schema
@@ -34,18 +21,6 @@ module Octopus
       run_on_schema { @klass = klass.transaction(options, &block) }
     end
 
-    def connection
-      @klass.connection_proxy.current_shard = @current_shard
-
-      if @klass.custom_octopus_connection && @klass.allowed_shard?(@current_shard)
-        # Force use of proxy, given we called 'using' explicitly to get here
-        @klass.connection_proxy.current_model = @klass
-        @klass.connection_proxy
-      else
-        @klass.connection
-      end
-    end
-
     def method_missing(method, *args, &block)
       result = run_on_schema { @klass.send(method, *args, &block) }
       if result.respond_to?(:all)
@@ -55,12 +30,5 @@ module Octopus
 
       result
     end
-
-    # Delegates to method_missing (instead of @klass) so that User.using(:blah).where(:name => "Mike")
-    # gets run in the correct shard context when #== is evaluated.
-    def ==(other)
-      method_missing(:==, other)
-    end
-    alias_method :eql?, :==
   end
 end
