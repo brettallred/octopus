@@ -42,5 +42,23 @@ module Octopus
         yield
       end
     end
+    
+    # Adds run_on_schema method, 
+    def run_on_schema(&block)
+      if (cs = current_schema)
+        r = ActiveRecord::Base.connection_proxy.run_queries_on_schema(cs, &block)
+        # Use a case statement to avoid any path through ActiveRecord::Delegation's
+        # respond_to? code. We want to avoid the respond_to? code because it can have
+        # the side effect of causing a call to load_target
+
+        if (ActiveRecord::Relation === r || ActiveRecord::QueryMethods::WhereChain === r) && !(Octopus::RelationProxy === r)
+          Octopus::RelationProxy.new(cs, r)
+        else
+          r
+        end
+      else
+        yield
+      end
+    end
   end
 end

@@ -3,7 +3,7 @@ require 'spec_helper'
 context "postgres schema support" do
 
   describe 'Octopus#using_schema' do
-    it 'should allow to pass a string as the schema name to a block' do 
+    it 'should allow passing a string as the schema name to a block' do 
       OctopusHelper.using_environment(:postgres_schemas) do
         Octopus.using_schema('schema_1') do
           User.create!(:name => 'Block test')
@@ -13,6 +13,14 @@ context "postgres schema support" do
           user = User.find_by(:name => 'Block test')
           expect(user).not_to be_nil
         end
+      end
+    end
+
+    it 'should allow to using the scope proxy' do 
+      OctopusHelper.using_environment(:postgres_schemas) do
+        User.using_schema('schema_1').create!(:name => 'Block test')
+        user = User.using_schema('schema_1').find_by(:name => 'Block test')
+        expect(user).not_to be_nil
       end
     end
   end

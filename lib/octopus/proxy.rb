@@ -560,6 +560,7 @@ module Octopus
 
     # Temporarily switch `current_shard` and schema_search_path and run the block
     def using_schema(schema, shard, &block)
+      binding.pry
       older_shard = current_shard
       older_slave_group = current_slave_group
       older_load_balance_options = current_load_balance_options
