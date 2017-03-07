@@ -9,6 +9,15 @@ mysql_unavailable: &mysql_unavailable
   host: 192.0.2.1
   connect_timeout: 3
 
+postgresql: &postgres
+  adapter: postgresql
+  username: <%= ENV['POSTGRES_USER'] || 'postgres' %>
+  password:
+  database: octopus_shard_1
+  encoding: unicode
+  host: localhost
+
+
 octopus: &octopus
   shards:
     alone_shard:
@@ -16,12 +25,8 @@ octopus: &octopus
       <<: *mysql
 
     postgresql_shard:
-      adapter: postgresql
-      username: <%= ENV['POSTGRES_USER'] || 'postgres' %>
-      password:
       database: octopus_shard_1
-      encoding: unicode
-      host: localhost
+      <<: *postgres
 
     sqlite_shard:
       adapter: sqlite3
@@ -215,3 +220,15 @@ modify_config:
       adapter: modify_config
       database: octopus_shard_1
       host: localhost
+
+postgres_schemas:
+  use_postgres_schemas: true
+  schemas: 
+    schema_1: postgres_schema_shard
+    schema_2: postgres_schema_shard
+  default_postgres_schema: random, "$user", public
+  persistent_postgres_schemas: persistant_schema
+  shards:
+    postgres_schema_shard: 
+      database: octopus_shard_1
+      <<: *postgres

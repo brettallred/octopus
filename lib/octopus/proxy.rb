@@ -1,4 +1,4 @@
-require 'set'
+require 'set' 
 require 'octopus/slave_group'
 require 'octopus/load_balancing/round_robin'
 
@@ -18,7 +18,7 @@ module Octopus
     def initialize(config = Octopus.config)
       initialize_shards(config)
       initialize_replication(config) if !config.nil? && config['replicated']
-      initialize_postgres_schemas(config) #if !config.nil? && config['use_postgres_schemas']
+      initialize_postgres_schemas(config) if !config.nil? && config['use_postgres_schemas']
     end
 
     def initialize_shards(config)
@@ -100,8 +100,7 @@ module Octopus
     end
 
     def initialize_postgres_schemas(config)
-      @schemas = HashWithIndifferentAccess.new
-      @postgres_schemas = true
+      @schemas = config['schemas']
       @default_postgres_schema = config['default_postgres_schema'] || '"$user", public'
       @persistent_postgres_schemas ||= config['persistent_postgres_schemas']
     end
@@ -228,6 +227,13 @@ module Octopus
       @shards.keys
     end
 
+    # Public: Retrieves names of all loaded schemas.
+    #
+    # Returns an array of schema names
+    def postgres_schema_names
+      @schemas.keys
+    end
+
     # Public: Retrieves the defined shards for a given group.
     #
     # Returns an array of shard names as symbols or nil if the group is not
@@ -269,8 +275,7 @@ module Octopus
     end
 
     def run_queries_on_schema(schema, &_block)
-      shard = @schemas[schema] 
-      shard = 'postgresql_shard'
+      shard = @schemas[schema]
       keeping_connection_proxy(shard) do
         using_schema(schema, shard) do
           yield

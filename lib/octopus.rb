@@ -121,6 +121,10 @@ module Octopus
     ActiveRecord::Base.connection.initialize_shards(@config)
   end
 
+  def self.schemas=(schemas)
+    config['schemas'] = schemas
+  end
+
   def self.using(shard, &block)
     conn = ActiveRecord::Base.connection
 
